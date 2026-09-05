@@ -1,6 +1,6 @@
 [submodule "etdrk4cp"]
 	path = etdrk4cp
-	url = git@github.com:gurcani/etdrk4cp.git
+	url = https://github.com/gurcani/etdrk4cp.git
 [submodule "mlsarray"]
 	path = mlsarray
-	url = git@github.com:gurcani/mlsarray.git
+	url = https://github.com/gurcani/mlsarray.git

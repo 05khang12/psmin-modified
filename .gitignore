@@ -1,0 +1,10 @@
+*.h5
+*.png
+*.npz
+run_logs/
+outputs/
+C10_*/
+D*/
+20??-??-??/
+__pycache__/
+*.pyc

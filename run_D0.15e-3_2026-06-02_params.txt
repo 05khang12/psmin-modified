@@ -1,0 +1,16 @@
+C = 10.0
+kappa = 1.0
+nu = 0.15e-3
+D = 0.15e-3
+t0 = 0.0
+t1 = 400.0
+Npx = Npy = 128
+Lx = Ly = 12*pi
+backend = numpy
+
+Outputs:
+out_hwak.h5
+out_hm_idelta.h5
+
+Plots:
+E(t), Ez(t), E(t) vs Ez(t), E(kx), E(ky), and log-log spectra at t=10 and t=400.

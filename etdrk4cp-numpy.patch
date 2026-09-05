@@ -1,0 +1,15 @@
+diff --git a/etdrk4cp.py b/etdrk4cp.py
+index e55537a..574e3cf 100644
+--- a/etdrk4cp.py
++++ b/etdrk4cp.py
+@@ -5,8 +5,8 @@ Created on Mon Aug 18 10:35:25 2025
+ 
+ @author: ogurcan
+ """
+-import cupy as xp
+-#import numpy as xp
++#import cupy as xp
++import numpy as xp
+ 
+ class etdrk4cp:
+     #Mostly from Nicola Farenga's implementation [https://github.com/farenga/ETDRK4] of Kassam and Lloyd 05
