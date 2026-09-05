@@ -1,0 +1,264 @@
+PSMIN-MODIFIED: USER AND PROJECT HANDOFF GUIDE
+============================================
+
+Repository: https://github.com/05khang12/psmin-modified
+Original project: https://github.com/gurcani/psmin
+This guide describes the code available in September 2026.
+All commands below are run from the repository root unless stated otherwise.
+
+1. PURPOSE AND FILE MAP
+
+This is a research code collection for two-dimensional pseudospectral
+Hasegawa-Wakatani and related reduced-model simulations, plus diagnostics.
+
+codes/simulation_codes/
+  hwak_min.py       Two-field HW simulation.
+  hm_idelta_min.py  HM i-delta simulation.
+  hmr_min.py        Reduced model with selectable H4/H6 hypoviscosity.
+  hmr_full_min.py   Reduced model using the full HW linear branch and a
+                    growth-rate reference evaluated on the simulation grid.
+  gamma_max.py      Growth-rate utilities used by simulations and plots.
+
+codes/macro_commands/
+  continue_from_output.py   Continue a saved field with HM i-delta or HW.
+  run_gamma_batch.py        Run/continue predefined HW and HM seed cases.
+  run_cross_continue_batch.py  Run predefined cross-model continuations.
+  hm_to_hwak_seed.py / hmr_to_hwak_seed.py  Model-specific seed conversion.
+  archive_seed_plots.py     Plot archiving helper.
+
+codes/graphing_analysis/
+  plot_hwak.py / plot_hm_idelta.py  Energy and spectrum diagnostics.
+  plot_hm_hw_energy_comparison.py  Compare two model outputs.
+  plot_spectral_heatmap.py         Plot a spectral snapshot.
+  inspect_h5_status.py             Print saved time ranges.
+  analyze_w_budget.py / plot_w_budget_*.py  W-budget analysis and plotting.
+  check_weighted_phi_invariant.py  Weighted-field invariant diagnostics.
+  Other plot/compose scripts support specific comparisons and experiments.
+
+scripts/run_demokan.sh  Bash launcher with separate output directories/logs.
+etdrk4cp/              Upstream time-integration dependency (Git submodule).
+mlsarray/              Upstream spectral-array dependency (Git submodule).
+etdrk4cp-numpy.patch   Local dependency change needed for the CPU setup.
+requirements-demokan.txt  Core NumPy, SciPy, and h5py dependencies.
+run_*_params.txt       Historical parameter records, not automatic config files.
+
+The former root-level hwak_min.py and anim.py were removed. Use codes/ paths.
+Read LICENSE and preserve attribution when redistributing modifications.
+
+2. FRESH CLONE AND CPU SETUP
+
+Use Git and Python 3.10 or newer (mlsarray uses Python match/case).
+The dependency versions are not pinned, so record installed versions for
+reproducible research. This repository currently uses the NumPy CPU path;
+setting MLSARRAY_BACKEND=cupy alone does not convert all models to GPU code.
+
+  git clone --recurse-submodules https://github.com/05khang12/psmin-modified.git
+  cd psmin-modified
+
+If already cloned without dependencies:
+  git submodule update --init --recursive
+
+Apply the CPU patch ONCE after initializing a fresh dependency checkout:
+  git -C etdrk4cp apply --check ../etdrk4cp-numpy.patch
+  git -C etdrk4cp apply ../etdrk4cp-numpy.patch
+
+If the patch check fails, check whether it is already applied:
+  git -C etdrk4cp apply --reverse --check ../etdrk4cp-numpy.patch
+A successful reverse check means the patch is already present: do not reapply.
+If both checks fail, inspect the dependency diff before changing anything.
+The patched submodule showing as modified in git status is expected.
+
+Create an environment:
+  python -m venv .venv
+
+Activate on Windows PowerShell:
+  .\.venv\Scripts\Activate.ps1
+Activate on Linux/macOS Bash:
+  source .venv/bin/activate
+Use python3 instead of python where that is your installed command.
+
+Install core and common plotting packages:
+  python -m pip install -r requirements-demokan.txt
+  python -m pip install matplotlib pillow
+
+Set the backend in each new terminal:
+PowerShell:
+  $env:MLSARRAY_BACKEND = "numpy"
+Bash:
+  export MLSARRAY_BACKEND=numpy
+
+Check imports without starting a simulation:
+  python -c "import numpy, scipy, h5py; import mlsarray.mlsarray; from etdrk4cp.etdrk4cp import etdrk4cp; print('Imports OK')"
+
+The old animation script additionally uses mpi4py, an MPI installation,
+LaTeX rendering, and external video tooling. It is not the quick-start path.
+
+3. FIRST RUN
+
+Simulation files run directly; they do not implement a --help interface.
+Do not import them just to inspect options: their top-level code runs a model.
+Choose a new output filename because fresh runs can overwrite existing files.
+
+PowerShell example (short HW run):
+  New-Item -ItemType Directory -Force outputs/quickstart
+  $env:MLSARRAY_BACKEND = "numpy"
+  $env:PSMIN_FLNAME = "outputs/quickstart/out_hwak.h5"
+  $env:PSMIN_SEED = "1"
+  $env:PSMIN_T1 = "1"
+  python codes/simulation_codes/hwak_min.py
+  Remove-Item Env:PSMIN_T1
+
+Bash equivalent:
+  mkdir -p outputs/quickstart
+  MLSARRAY_BACKEND=numpy PSMIN_SEED=1 PSMIN_T1=1 PSMIN_FLNAME=outputs/quickstart/out_hwak.h5 python codes/simulation_codes/hwak_min.py
+
+This is a startup check, not a physically converged experiment.
+PSMIN_T1 is supported by hwak_min.py; the other models currently derive their
+end time from PSMIN_GAMMA_T1 instead. A small positive gamma duration can be
+used for those, but choose one giving a positive physical end time.
+
+For a normal run on Linux or WSL with Bash and standard GNU utilities:
+  bash scripts/run_demokan.sh hwak baseline
+  bash scripts/run_demokan.sh hm_idelta baseline
+  bash scripts/run_demokan.sh hmr baseline
+
+The launcher creates outputs/<timestamp>_<model>_<label>/ with the HDF5 file,
+metadata.txt, run.log, and a SUCCESS or FAILED marker. It calls python3, so
+ensure python3 belongs to the intended environment. It does not accept
+hmr_full; run codes/simulation_codes/hmr_full_min.py directly for that model.
+
+4. PARAMETERS AND REPRODUCIBILITY
+
+Set environment variables before launching Python. On PowerShell they persist
+in that terminal until removed; clear old restart/time settings before a fresh
+experiment, or use a new terminal and set only the desired parameters.
+
+Common settings:
+  PSMIN_C, PSMIN_KAP       Model parameters C and kappa.
+  PSMIN_NU, PSMIN_D        Dissipation coefficients.
+  PSMIN_FLNAME             Output HDF5 path; create its parent directory first.
+  PSMIN_SEED               Random seed for initial conditions.
+  PSMIN_GAMMA_T1           Target growth-rate-scaled duration, default 30.
+  PSMIN_WECONTINUE         1 to continue an existing output in place; default 0.
+  PSMIN_RESTART_FILE       Read a saved state into a separate output file.
+  PSMIN_CONTINUE_GAMMA_T1  Continuation duration in growth-rate units.
+
+Model-specific settings:
+  PSMIN_T1                Absolute physical end time for fresh HW runs only.
+  PSMIN_HYPO_FACTOR       Hypoviscosity factor in HM/HMR variants.
+  PSMIN_HYPO_METHOD       H4 or H6 in hmr_min and hmr_full_min.
+  PSMIN_DAMPING_RATIO     hmr_full default nu,D relative to its growth reference;
+                          explicit PSMIN_NU/PSMIN_D override those defaults.
+
+HW, HM i-delta, and HMR currently default to C=10, kappa=1, nu=D=0.00015.
+HMR-full defaults to C=1 and derives nu,D from its grid growth-rate reference.
+The current model files use Npx=Npy=128 and Lx=Ly=12*pi. Grid sizes, domain,
+solver tolerance and save intervals are set in source, not general CLI flags.
+Check the chosen model before changing these; restart grids must be compatible.
+
+Gamma-scaled time is converted to physical time with integer truncation in
+several paths. Different models can use different growth references. A zero
+reference growth rate causes a division-by-zero problem; check the parameter
+regime before long runs. The HW PSMIN_T1 override is applied after its initial
+growth-based time calculation, so it does not bypass that problem.
+
+Record the commit, dependency revisions/patch, Python package versions, seed,
+model, parameters, grid, time convention, and output location for each study.
+The Bash launcher records environment overrides, not every source default.
+
+5. OUTPUT INSPECTION AND PLOTS
+
+HDF5 outputs include data/ metadata, fields/ snapshots and energies/ time
+series. Inspect actual keys because diagnostics and metadata vary by model.
+Saved field times and energy times may have different sampling intervals.
+
+  python codes/graphing_analysis/inspect_h5_status.py outputs/quickstart/out_hwak.h5
+  python codes/graphing_analysis/plot_hwak.py --input outputs/quickstart/out_hwak.h5
+  python codes/graphing_analysis/plot_spectral_heatmap.py --input outputs/quickstart/out_hwak.h5 --output outputs/quickstart/spectrum.png
+
+The HW plotter creates several default PNG files in the current directory.
+For a research run, pass plotting C, kap, D matching the run where applicable;
+some plotters use CLI defaults for time scaling rather than reading everything
+from the HDF5 file. Use --help to see output paths and time-selection options:
+  python codes/graphing_analysis/plot_hwak.py --help
+  python codes/graphing_analysis/plot_hm_idelta.py --help
+  python codes/graphing_analysis/analyze_w_budget.py --help
+
+Example comparison after generating both matching datasets:
+  python codes/graphing_analysis/plot_hm_hw_energy_comparison.py path/to/hm.h5 path/to/hw.h5 --output outputs/comparison.png
+
+Many compose_* scripts contain experiment-specific paths. Review those before
+running. anim.py uses fixed filenames; untitled0.py is an unfinished plotting
+scratch file. Neither is a general-purpose command-line plotting entry point.
+
+6. CONTINUATION AND BATCHES
+
+Example with separate source and destination:
+  python codes/macro_commands/continue_from_output.py --input outputs/quickstart/out_hwak.h5 --output outputs/continued/out_hwak.h5 --method hwak --t1 100 --C 10 --kap 1 --nu 0.00015 --D 0.00015
+
+The helper supports --method hm or hwak. --gamma-t1 overrides --t1; the latter
+is converted to growth units internally and the simulation truncates physical
+time, so the requested extension may be rounded down. The starting state is
+the last saved field, which may precede the last saved energy sample.
+Always use distinct input and output paths. Match source grid and intended
+physics; the helper's parameter defaults do not automatically follow the file.
+
+Inspect batch choices before launching multiple simulations:
+  python codes/macro_commands/run_gamma_batch.py --help
+  python codes/macro_commands/run_cross_continue_batch.py --help
+
+Example of just the initial predefined cases:
+  python codes/macro_commands/run_gamma_batch.py --stage initial --output-dir outputs/batch1 --log-dir run_logs/batch1
+
+7. NOTES FOR A NEW COLLABORATOR OR CODEX SESSION
+
+Suggested opening request:
+  Read PROJECT_GUIDE.txt and README.md, inspect git status and the relevant
+  model, and explain the intended parameter/time convention before editing
+  scientific formulas. Use a new output directory for any validation run.
+
+This text file is a handoff guide: explicitly ask an assistant to read it.
+
+Work in codes/simulation_codes, codes/macro_commands, or codes/graphing_analysis
+as appropriate. Launchers already reference those directories. Keep changes to
+physical formulas separate and explain their effect on diagnostics. Do not
+assume identically named energies have identical definitions across models.
+
+Check git status before editing: local research outputs and dependency changes
+may belong to ongoing work. The etdrk4cp NumPy patch is intentional. Submodule
+edits are not included by committing only the parent repository; preserve any
+new dependency changes as an explicit patch or an accessible submodule commit.
+
+For changes, perform suitable import/syntax checks and a short isolated run
+when needed. Verify saved times and finite fields/energies; a successful process
+exit alone does not establish numerical or physical validity. Do not start long
+batches just to test a documentation change.
+
+Git origin should be the user's psmin-modified repository. The original author's
+repository can be kept as upstream. A fresh clone does not automatically create
+upstream. Verify git remote -v before pushing; do not push to dependencies or
+change the original author's repository as part of routine project work.
+
+The repository excludes *.h5, *.png, *.npz, outputs/, run_logs/, Python caches,
+and several historical run-directory patterns. Reports, local figures, and the
+local upstream snapshot were not included in the code upload. A fresh clone
+therefore does not contain previous experiment datasets. Keep new environments
+and large generated artifacts out of commits; inspect staging rather than
+blindly adding every local file. .venv/ is not currently in .gitignore.
+
+8. COMMON PROBLEMS
+
+Missing mlsarray/etdrk4cp: initialize submodules, run from repository root.
+Missing cupy: apply the NumPy patch and select MLSARRAY_BACKEND=numpy.
+match/case syntax error: check that the active Python is at least 3.10.
+Missing plotting package: install matplotlib/pillow in the active environment.
+Missing input file: regenerate it or obtain the dataset; outputs are not on Git.
+Patch does not apply: use the forward/reverse checks in section 2; inspect diffs.
+Unexpected continuation: clear inherited PSMIN_RESTART_FILE/PSMIN_WECONTINUE
+and continuation duration variables before a new run.
+HDF5 path error: create the output parent directory and check file permissions.
+Animation errors: inspect its hard-coded inputs and MPI/LaTeX/video dependencies.
+
+Validation scope: commands and options were checked against the source while
+writing this guide. No full simulation or clean-environment installation was
+performed for this documentation update.

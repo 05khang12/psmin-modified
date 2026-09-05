@@ -27,3 +27,5 @@ pip install -r requirements-demokan.txt
 
 Apply the patch once on a fresh checkout. Individual analysis scripts may need
 additional plotting packages. Generated simulation outputs are ignored by Git.
+
+For setup, run examples, troubleshooting, and collaborator/Codex handoff notes, read [PROJECT_GUIDE.txt](PROJECT_GUIDE.txt).
