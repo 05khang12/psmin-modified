@@ -185,9 +185,9 @@ def main():
     args = parser.parse_args()
 
     gamma_value = gamma_value_for_file(args.input, args.kap, args.C, args.D)
-    plot_energy(args.input, "Etot", args.energy_output, "i-delta total energy", "E(t)", gamma_value)
+    plot_energy(args.input, "Etot", args.energy_output, f"{args.label} total energy", "E(t)", gamma_value)
     print(os.path.abspath(args.energy_output))
-    plot_energy(args.input, "Ez", args.zonal_output, "i-delta zonal energy", "Ez(t)", gamma_value)
+    plot_energy(args.input, "Ez", args.zonal_output, f"{args.label} zonal energy", "Ez(t)", gamma_value)
     print(os.path.abspath(args.zonal_output))
     plot_energy_overlay(args.input, args.energy_overlay_output, gamma_value, args.label)
     print(os.path.abspath(args.energy_overlay_output))

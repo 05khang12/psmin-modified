@@ -33,6 +33,8 @@ Npx,Npy=128,128
 gamma_t1=30.0
 flname=os.environ.get("PSMIN_FLNAME", flname)
 wecontinue=os.environ.get("PSMIN_WECONTINUE", "0") == "1"
+Npx=int(os.environ.get("PSMIN_NPX", Npx))
+Npy=int(os.environ.get("PSMIN_NPY", Npy))
 gamma_t1=float(os.environ.get("PSMIN_GAMMA_T1", gamma_t1))
 restart_file=os.environ.get("PSMIN_RESTART_FILE")
 t0=0

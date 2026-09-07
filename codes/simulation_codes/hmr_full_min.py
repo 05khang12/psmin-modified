@@ -33,7 +33,8 @@ gamma_t1 = float(os.environ.get("PSMIN_GAMMA_T1", 30.0))
 restart_file = os.environ.get("PSMIN_RESTART_FILE")
 t0 = 0.0
 tol = 1e-8
-Npx, Npy = 128, 128
+Npx = int(os.environ.get("PSMIN_NPX", 128))
+Npy = int(os.environ.get("PSMIN_NPY", 128))
 Nx, Ny = 2 * int(np.floor(Npx / 3)), 2 * int(np.floor(Npy / 3))
 Lx, Ly = 12 * np.pi, 12 * np.pi
 dkx, dky = 2 * np.pi / Lx, 2 * np.pi / Ly
@@ -122,9 +123,10 @@ phik0[:] = (
 phik0[~nonzero] = 0.0
 
 
-#   d phi_k / dt = L_k phi_k + NL(phi)_k
+#   d phi_k / dt = L_k phi_k - FFT({phi, q})_k / (k^2 + R_k)
 #   L_k = (-i kap ky - nu k^4 - D k^2 R_k) / (k^2 + R_k) - nu_l / k^hypo_power
 #   R_k uses the full non-asymptotic HW + eigenvalue.
+#   q_k = (k^2 + R_k) phi_k
 p_k = ksqr + r_k
 Lk = np.zeros_like(phik0)
 active = nonzero & sigk
@@ -137,10 +139,14 @@ Lk[nonzero] -= nu_l * inv_ksqr[nonzero] ** (0.5 * hypo_power)
 
 
 def rhsnl(t, phik):
-    om = irft(-ksqr * phik)
     dxphi = irft(1j * kx * phik)
     dyphi = irft(1j * ky * phik)
-    dphikdt = (-1j * kx * rft(dyphi * om) + 1j * ky * rft(dxphi * om)) * inv_ksqr
+    qk = p_k * phik
+    dxq = irft(1j * kx * qk)
+    dyq = irft(1j * ky * qk)
+    bracket_k = rft(dxphi * dyq - dyphi * dxq)
+    dphikdt = np.zeros_like(phik)
+    dphikdt[nonzero] = -bracket_k[nonzero] / p_k[nonzero]
     dphikdt[~nonzero] = 0.0
     return dphikdt
 
@@ -159,7 +165,7 @@ def save_callback(fl, t, phik, flag):
     if flag == "energies":
         print("saving energies")
         density_energy = np.abs(nk) ** 2
-        mode_energy = np.abs(phik) ** 2 * ksqr + density_energy
+        mode_energy = (ksqr + np.real(r_k)) * np.abs(phik) ** 2
         save_data(
             fl,
             "energies",

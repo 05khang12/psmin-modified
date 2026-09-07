@@ -157,7 +157,7 @@ def save_callback(fl, t, phik, flag):
     if flag == "energies":
         print("saving energies")
         density_energy = np.abs(nk) ** 2
-        mode_energy = np.abs(phik) ** 2 * ksqr + density_energy
+        mode_energy = (ksqr + np.real(r_k)) * np.abs(phik) ** 2
         Etot = np.sum(mode_energy)
         Ez = np.sum(mode_energy * (ky == 0))
         Ftot = np.sum(density_energy)
